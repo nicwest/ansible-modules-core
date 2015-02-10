@@ -96,6 +96,12 @@ options:
     required: false
     choices: [ "all", "safe", "none" ]
     default: "safe"
+  forward_auth_headers:
+    description:
+      - Whether or not the URI module will forward authentication headers to redirect URL's
+    required: false
+    choices: [ "yes", "no" ]
+    default: "yes"
   creates:
     description:
       - a filename, when it already exists, this step will not be run.
@@ -238,7 +244,7 @@ def url_filename(url):
     return fn
 
 
-def uri(module, url, dest, user, password, body, method, headers, redirects, socket_timeout):
+def uri(module, url, dest, user, password, body, method, headers, redirects, socket_timeout, forward_auth_headers):
     # To debug
     #httplib2.debug = 4
 
@@ -257,7 +263,7 @@ def uri(module, url, dest, user, password, body, method, headers, redirects, soc
     h = httplib2.Http(disable_ssl_certificate_validation=True, timeout=socket_timeout)
     h.follow_all_redirects = follow_all_redirects
     h.follow_redirects = follow_redirects
-    h.forward_authorization_headers = True
+    h.forward_authorization_headers = forward_auth_headers
 
     # If they have a username or password verify they have both, then add them to the request
     if user is not None and password is None:
@@ -339,6 +345,7 @@ def main():
             return_content = dict(required=False, default='no', type='bool'),
             force_basic_auth = dict(required=False, default='no', type='bool'),
             follow_redirects = dict(required=False, default='safe', choices=['all', 'safe', 'none', 'yes', 'no']),
+            forward_auth_headers = dict(required=False, default='yes', type='bool'),
             creates = dict(required=False, default=None),
             removes = dict(required=False, default=None),
             status_code = dict(required=False, default=[200], type='list'),
@@ -362,6 +369,7 @@ def main():
     return_content = module.params['return_content']
     force_basic_auth = module.params['force_basic_auth']
     redirects = module.params['follow_redirects']
+    forward_auth_headers = module.params['forward_auth_headers']
     creates = module.params['creates']
     removes = module.params['removes']
     status_code = [int(x) for x in list(module.params['status_code'])]
@@ -400,7 +408,7 @@ def main():
 
 
     # Make the request
-    resp, content, dest = uri(module, url, dest, user, password, body, method, dict_headers, redirects, socket_timeout)
+    resp, content, dest = uri(module, url, dest, user, password, body, method, dict_headers, redirects, socket_timeout, forward_auth_headers)
     resp['status'] = int(resp['status'])
 
     # Write the file out if requested
